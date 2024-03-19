@@ -1,0 +1,390 @@
+Program.Sub.Preflight.Start
+Program.External.Include.Library("6004.lib")
+Program.External.Include.Library("175100.lib")
+Program.External.Include.Library("200000.lib")
+Program.External.Include.Library("UPLPUROR.lib")
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+'Hook 11869
+f.Intrinsic.Control.Try
+	f.ODBC.Connection!con.opencompanyconnection(90)
+	v.Local.ssql.Declare
+	v.Local.sret.Declare
+	v.Local.bExists.Declare
+	f.ODBC.Connection!con.tableExists("GAB_6808_INTRA",V.Local.bExists)
+	f.Intrinsic.Control.If(v.Local.bExists,=,False)
+		v.Local.ssql.Set("CREATE TABLE GAB_6808_INTRA  ( SO_HEAD VARCHAR(7), SO_LINE VARCHAR(4), CUSTOMER_NAME VARCHAR(30), INTRA_SO_HEAD VARCHAR(7), INTRA_SO_LINE VARCHAR(4), INTRA_PO_HEAD VARCHAR(7), INTRA_PO_LINE VARCHAR(4), JOB VARCHAR(6), SUFFIX VARCHAR(3), PO_RM_PART VARCHAR(20), PO_RM_PART_DESC VARCHAR(30), PO_RM_PART_QTY NUMERIC(8,2), PO_RM_PART_COST NUMERIC(8,2), PO_RM_PART_UM VARCHAR(2), PO_RM_PART_GL VARCHAR(15), PO_RM_PART_DDATE DATE, PO_RM_PART_PL VARCHAR(2), PO_CREATED VARCHAR(1) );")
+		f.ODBC.Connection!con.execute(v.Local.ssql)
+	f.Intrinsic.Control.EndIf
+	
+	v.Local.sSO.Declare
+	v.Local.sSOL.Declare
+	v.Local.sSOL3.Declare
+	v.Local.sCust.Declare
+	v.Local.sCustomerName.Declare
+	v.Local.sPL.Declare
+	V.Local.sPart.Declare
+	V.Local.sPartNoHash.Declare
+	v.Local.sDesc.Declare
+	v.Local.i.Declare
+	v.Local.iPlusOne.declare
+	v.Local.j.Declare(long)
+	v.Local.bUpload.Declare
+	v.Local.fQty.Declare
+	v.Local.sQty.Declare
+	v.Local.fPurQ.Declare
+	v.Local.fPurC.Declare
+	v.Local.fPrice.Declare
+	v.Local.sPrice.Declare
+	v.Local.sSOFile.Declare
+	v.Local.sPOFile.Declare
+	v.Local.sPOLine.Declare
+	v.Local.sCustFile.Declare
+	V.Local.sIntraCust.Declare
+	V.Local.sIntraVend.Declare
+	v.local.sOrigJob.Declare
+	v.Local.sOrigSfx.Declare
+	v.Local.sOrigSeq.Declare
+	v.Local.sVendFile.Declare
+	v.Local.sPromiseDate.Declare
+	v.Local.sJob.Declare
+	v.Local.sSfx.Declare
+	v.Local.sSeq.Declare
+	v.Local.sDueD.Declare
+	v.Local.sPurU.Declare
+	v.Local.sGenL.Declare
+	v.Local.sMsg.Declare
+	v.Local.iRet.Declare
+	
+	v.Local.bCustFile.Declare
+	v.Local.bVendFile.Declare
+	v.Local.bPOFile.Declare
+	v.Local.bSOFile.Declare
+	v.Local.iPONum.Declare
+	v.Local.iSONum.Declare
+	v.Local.dDueDate.Declare
+	v.Local.dPromiseDate.Declare
+	f.Intrinsic.Date.DateAddWorkdays(v.Ambient.Date,"-7",v.Local.dPromiseDate)
+	f.Intrinsic.String.Format(v.Local.dPromiseDate,"YYYYMMDD",v.Local.sPromiseDate)
+	
+	'Intra company Sales Order Numbering Declaration
+	f.Intrinsic.String.Concat(v.Caller.GasDir,"\GAB_6808_INTRASO.txt",v.Local.sSOFile)
+	f.Intrinsic.File.Exists(v.Local.sSOFile,v.Local.bSOFile)
+	f.Intrinsic.Control.If(v.Local.bSOFile,=,False)
+		f.Intrinsic.File.String2File(v.Local.sSOFile,"7500000")
+		v.Local.iSONum.Set("7500000")
+	f.Intrinsic.Control.Else
+		f.Intrinsic.File.File2String(v.Local.sSOFile,v.Local.iSONum)
+		f.Intrinsic.Math.Add(v.Local.iSONum,1,v.Local.iSONum)
+		F.Intrinsic.File.String2File(V.Local.sSOFile,V.Local.iSONum)
+	f.Intrinsic.Control.EndIf
+	
+	'Intra company Purchase Order Numbering Declaration
+	f.Intrinsic.String.Concat(v.Caller.GasDir,"\GAB_6808_INTRAPO.txt",v.Local.sPOFile)
+	f.Intrinsic.File.Exists(v.Local.sPOFile,v.Local.bPOFile)
+	f.Intrinsic.Control.If(v.Local.bPOFile,=,False)
+		f.Intrinsic.File.String2File(v.Local.sPOFile,"7000000")
+		v.Local.iPONum.Set("7000000")
+	f.Intrinsic.Control.Else
+		f.Intrinsic.File.File2String(v.Local.sPOFile,v.Local.iPONum)
+		f.Intrinsic.Math.Add(v.Local.iPONum,1,v.Local.iPONum)
+		F.Intrinsic.File.String2File(V.Local.sPOFile,V.Local.iPONum)
+	f.Intrinsic.Control.EndIf
+	
+	'Intra company customer setup
+	f.Intrinsic.String.Concat(v.Caller.GasDir,"\GAB_6808_INTRACUST.txt",v.Local.sCustFile)
+	f.Intrinsic.File.Exists(v.Local.sCustFile,v.Local.bCustFile)
+	f.Intrinsic.Control.If(v.Local.bCustFile,=,False)
+		f.Intrinsic.File.String2File(v.Local.sCustFile,"14401")
+		v.Local.sIntraCust.Set("14401")
+	f.Intrinsic.Control.Else
+		f.Intrinsic.File.File2String(v.Local.sCustFile,v.Local.sIntraCust)
+	f.Intrinsic.Control.EndIf
+		
+	'Intra company vendor setup
+	f.Intrinsic.String.Concat(v.Caller.GasDir,"\GAB_6808_INTRAVEND.txt",v.Local.sVendFile)
+	f.Intrinsic.File.Exists(v.Local.sVendFile,v.Local.bVendFile)
+	f.Intrinsic.Control.If(v.Local.bVendFile,=,False)
+		f.Intrinsic.File.String2File(v.Local.sVendFile,"7317")
+		v.Local.sIntraVend.Set("7317")
+	f.Intrinsic.Control.Else
+		f.Intrinsic.File.File2String(v.Local.sVendFile,v.Local.sIntraVend)
+	f.Intrinsic.Control.EndIf
+	
+	
+	f.Intrinsic.Control.If(v.Caller.Hook,=,"11869")
+		f.Intrinsic.UI.Msgbox("Do you want to create an intracompany order?","Intracompany",4,v.Local.iRet)
+		
+		f.Intrinsic.Control.If(v.Local.iRet,=,6)
+		
+			'Sales Order
+			f.Intrinsic.String.LPad(v.Passed.000003,"0",7,v.Local.sSO)
+			
+			'Customer set
+			v.Local.sCust.Set(v.Passed.000006)
+			f.Intrinsic.String.Build("SELECT NAME_CUSTOMER FROM V_ORDER_BILL_TO WHERE CUSTOMER='{0}' AND order_no='{1}'",V.Local.sCust,v.Local.sSO,V.Local.ssql)
+			F.ODBC.Connection!con.executeandreturn(v.Local.ssql,v.Local.sCustomerName)
+			
+			f.Intrinsic.String.Build("SELECT RECORD_NO, PART, QTY_ORDERED, PRICE, DESCRIPTION  FROM V_ORDER_LINES WHERE ORDER_NO='{0}'",v.Local.sSO,v.Local.ssql)
+			F.Data.DataTable.CreateFromSQL("dt","con",v.Local.ssql)
+			f.Intrinsic.Control.For(v.Local.i,0,v.DataTable.dt.RowCount--)
+				
+				
+				'Search the router lines for Intra keyword
+				f.Intrinsic.String.Build("SELECT * FROM ROUTER_LINE WHERE ROUTER='{0}' AND SORT_CODE='INTRA' AND LINE_ROUTER>'000000'",v.DataTable.dt(v.Local.i).PART!FIELDVALTRIM,v.Local.ssql)
+				F.Intrinsic.Control.If(V.DataTable.dtR.Exists)
+					F.Data.DataTable.Close("dtR")
+				F.Intrinsic.Control.EndIf
+				f.Data.DataTable.CreateFromSQL("dtR","con",v.Local.ssql)
+				
+				'Loop through the records
+				f.Intrinsic.Control.For(v.Local.j,0,v.DataTable.dtR.RowCount--,1)
+				
+					'Set PO Line & SO Line
+					f.Intrinsic.Math.Add(v.Local.iPlusOne,1,v.Local.iPlusOne)
+					f.Intrinsic.String.LPad(v.Local.iPlusOne,"0",3,v.Local.sPOLine)
+					f.Intrinsic.String.Concat(v.Local.sPOLine,"0",v.Local.sPOLine)
+					v.Local.sSOL.Set(v.DataTable.dt(v.Local.i).RECORD_NO!fieldval)
+				
+					'Get the Product Line
+					f.Intrinsic.String.Build("select PROD_LINE from ROUTER_HEADER where router='{0}' and router_type='H'",v.DataTable.dt(v.Local.i).PART!FIELDVALTRIM,v.Local.ssql)
+					f.ODBC.Connection!con.executeandreturn(v.Local.ssql,v.Local.sPL)
+					
+					'Get the description
+					f.Intrinsic.String.Build("select description_router from ROUTER_HEADER where router='{0}' and router_type='H'",v.DataTable.dt(v.Local.i).PART!FIELDVALTRIM,v.Local.ssql)
+					f.ODBC.Connection!con.executeandreturn(v.Local.ssql,v.Local.sDesc)
+					
+					'Get purchased GL code
+					f.Intrinsic.String.Build("select GL_ACCT from V_PL_GL_ACCOUNTS WHERE TYPE=2 AND PROD_LINE='{0}'",v.Local.sPL,v.Local.ssql)
+					f.ODBC.Connection!con.executeandreturn(v.Local.ssql,v.Local.sGenL)
+					
+					'Set proper part number
+					f.Intrinsic.String.Replace(v.DataTable.dtR(v.local.j).PART_WC_OUTSIDE!Fieldvaltrim,"#","",v.Local.sPart)
+					
+					'Get the total quantity to order + sales price
+					V.Local.bUpload.Set(true)
+					f.Intrinsic.Math.Mult(v.DataTable.dt(v.Local.i).QTY_ORDERED!Fieldval,v.DataTable.dtR(v.Local.j).RUN_TIME!Fieldval,v.Local.fQty)
+					
+					F.Intrinsic.String.Format(V.local.fQty,"000000000.0000",V.Local.sQty)
+					F.Intrinsic.String.Replace(V.Local.sQty,".","",V.Local.sQty)
+					F.Intrinsic.String.Replace(V.Local.sQty,"-","",V.Local.sQty)
+					
+					F.Intrinsic.Control.If(v.DataTable.dtR(v.Local.j).RATE!FIELDVAL,<>,0)
+						f.Intrinsic.Math.Div(v.DataTable.dtR(v.Local.j).RATE!FIELDVAL,.8,V.Local.fPrice)
+					F.Intrinsic.Control.EndIf	
+					F.Intrinsic.String.Format(V.local.fPrice,"0000000000.000000",V.Local.sPrice)
+					f.Intrinsic.String.Replace(v.Local.sPrice,".","",v.Local.sPrice)
+	
+					'START HERE, NEED TO ADD IN MORE VALUES
+					f.Intrinsic.String.Build("INSERT INTO GAB_6808_INTRA (SO_HEAD, SO_LINE, CUSTOMER_NAME, INTRA_SO_HEAD, INTRA_SO_LINE, INTRA_PO_HEAD, INTRA_PO_LINE, JOB, SUFFIX, PO_RM_PART, PO_RM_PART_DESC, PO_RM_PART_QTY, PO_RM_PART_COST, PO_RM_PART_UM, PO_RM_PART_GL, PO_RM_PART_DDATE, PO_RM_PART_PL, PO_CREATED) VALUES ('{0}','{1}','{2}','{3}','{4}','{5}','{6}','{7}','{8}','{9}','{10}',{11},{12},'{13}','{14}','{15}','{16}','{17}')",V.Local.sSO,v.Local.sSOL,v.Local.sCustomerName,"",v.Local.sPOLine,v.Local.iPONum,v.Local.sPOLine,"N","",v.DataTable.dtR(v.local.j).PART_WC_OUTSIDE!Fieldvaltrim,V.Local.sDesc,v.Local.fQty,v.DataTable.dtR(v.Local.j).RATE!FIELDVAL,"EA",v.Local.sGenL,"1900-01-01",v.Local.sPL,"N",v.Local.ssql)
+					f.ODBC.Connection!con.execute(v.Local.ssql)
+					
+				f.Intrinsic.Control.Next(v.Local.j)
+			f.Intrinsic.Control.Next(v.Local.i)
+			
+			
+			f.Intrinsic.String.Build("UPDATE GAB_6808_INTRA SET INTRA_SO_HEAD='{0}' WHERE SO_HEAD='{1}'",v.Local.iSONum,v.Local.sSO,v.Local.ssql)
+			f.ODBC.Connection!con.execute(v.Local.ssql)
+			
+		f.Intrinsic.Control.EndIf
+	
+	f.Intrinsic.Control.ElseIf(v.Caller.Hook,=,53200)
+		v.Passed.Form1-cmdBarScript-1.Set("Sigmanest Export")
+		v.Passed.Form1-cmdBarScript-2.Set("Sigmanest Import")
+		v.Passed.Form1-cmdBarScript-3.Set("Intracompany Order")
+	
+	f.Intrinsic.Control.Else
+		'Hook 53202 or 53252
+		'On the closing of the automated wo generation program or ran from anywhere
+		f.Data.DataTable.CreateFromSQL("dtIntra","con","SELECT * FROM GAB_6808_INTRA WHERE JOB='N'")
+		f.Intrinsic.Control.If(v.DataTable.dtIntra.RowCount,>,0)
+
+			f.Data.DataTable.AddRow("6004Header","OrderNum",v.DataTable.dtIntra(0).INTRA_SO_HEAD!fieldval,"Type","O","CustNum",v.Local.sIntraCust,"OverrideAutoNum","1")
+
+			f.Intrinsic.Control.For(v.Local.i,0,v.DataTable.dtIntra.RowCount--,1)
+			
+				'Get the Part # and description
+				V.Local.sPart.Set(v.DataTable.dtIntra(v.Local.i).PO_RM_PART!fieldvaltrim)
+				f.Intrinsic.String.Replace(v.Local.sPart,"#","",v.Local.sPartNoHash)
+				v.Local.sDesc.Set(v.DataTable.dtIntra(v.Local.i).PO_RM_PART_DESC!Fieldvaltrim)
+				v.Local.fPurQ.Set(v.DataTable.dtIntra(v.Local.i).PO_RM_PART_QTY!Fieldval)
+				V.Local.fPurC.Set(v.DataTable.dtIntra(v.Local.i).PO_RM_PART_COST!Fieldval)
+				V.Local.sPurU.Set(v.DataTable.dtIntra(v.Local.i).PO_RM_PART_UM!Fieldval)
+				V.Local.sPL.Set(v.DataTable.dtIntra(v.Local.i).PO_RM_PART_PL!Fieldval)
+				V.Local.sGenL.Set(v.DataTable.dtIntra(v.Local.i).PO_RM_PART_GL!Fieldval)
+				
+				'Quantity
+				v.Local.fQty.Set(v.DataTable.dtIntra(v.Local.i).PO_RM_PART_QTY!FIELDVAL)
+				F.Intrinsic.String.Format(V.local.fQty,"000000000.0000",V.Local.sQty)
+				F.Intrinsic.String.Replace(V.Local.sQty,".","",V.Local.sQty)
+				F.Intrinsic.String.Replace(V.Local.sQty,"-","",V.Local.sQty)
+				
+				'Price
+				v.Local.fPrice.Set(v.DataTable.dtIntra(v.Local.i).PO_RM_PART_QTY!Fieldval)
+				F.Intrinsic.String.Format(V.local.fPrice,"0000000000.000000",V.Local.sPrice)
+				f.Intrinsic.String.Replace(v.Local.sPrice,".","",v.Local.sPrice)
+						
+				'Get the Orig Job and Suffix
+				F.Intrinsic.String.Build("select JOB, SUFFIX from ORDER_TO_WO WHERE ORDER_NO='{0}' and ORDER_LINE='{1}'",v.DataTable.dtIntra(v.Local.i).SO_HEAD!Fieldvaltrim,v.DataTable.dtIntra(v.Local.i).SO_LINE!Fieldvaltrim,v.Local.ssql)
+				F.ODBC.Connection!Con.executeandreturn(v.Local.ssql,v.Local.sret)
+	
+				'Map in Sales Order
+				f.Data.DataTable.AddRow("6004Lines","OrderNum",v.DataTable.dtIntra(0).INTRA_SO_HEAD!fieldval,"LineNumber",v.DataTable.dtIntra(V.Local.I).INTRA_SO_LINE!fieldval,"QtyOrdered",v.Local.sQty,"UM","EA","Part",v.Local.sPartNoHash,"QuotedPrice",v.Local.sPrice,"PL",v.Local.sPL,"PromiseDate",v.Local.sPromiseDate)
+				
+				f.Intrinsic.Control.If(v.Local.sret.Trim,=,"")
+					f.Intrinsic.String.Concat(v.Local.sMsg,"WARNING: No Intracompany POs created.  Program attempted to generated intracompany Purchase Order, but originating sales order does not have its work order generated yet.  SO# ",v.DataTable.dtIntra(v.Local.i).SO_HEAD!Fieldvaltrim,"-",v.DataTable.dtIntra(v.Local.i).SO_LINE!Fieldvaltrim,v.Ambient.NewLine,v.Local.sMsg)
+				f.Intrinsic.Control.Else
+					'Set Orig Job and Suffix
+					f.Intrinsic.String.Split(v.Local.sret,"*!*",v.Local.sret)
+					v.Local.sOrigJob.Set(v.Local.sret(0))
+					v.Local.sOrigSfx.Set(v.Local.sRet(1))
+					
+					'Get the Job and Suffix
+					f.Intrinsic.String.Left(v.DataTable.dtIntra(v.Local.i).INTRA_SO_LINE!Fieldvaltrim,3,v.Local.sSOL3)
+					F.Intrinsic.String.Build("select DISTINCT JOB, SUFFIX from JOB_HEADER WHERE SALES_ORDER='{0}' and SALES_ORDER_LINE='{1}0'",v.DataTable.dtIntra(v.Local.i).INTRA_SO_HEAD!Fieldvaltrim,v.Local.sSOL3,v.Local.ssql)
+					F.ODBC.Connection!Con.executeandreturn(v.Local.ssql,v.Local.sret)
+					f.Intrinsic.String.Split(v.Local.sret,"*!*",v.Local.sret)
+					v.Local.sJob.Set(v.Local.sret(0))
+					v.Local.sSfx.Set(v.Local.sRet(1))
+					
+					'Get the WO Sequence
+					f.Intrinsic.String.Build("SELECT SEQ FROM V_JOB_OPERATIONS WHERE JOB='{0}' AND SUFFIX='{1}' AND PART='{2}' AND LMO='M'",v.Local.sOrigJob,v.Local.sOrigSfx,v.Local.sPart,v.Local.ssql)
+					f.ODBC.Connection!con.executeandreturn(v.Local.ssql,v.Local.sOrigSeq)
+					
+					f.Intrinsic.String.Build("SELECT DATE_DUE FROM V_JOB_OPERATIONS WHERE JOB='{0}' AND SUFFIX='{1}' AND PART='{2}' AND LMO='M' and SEQ='{3}'",v.Local.sOrigJob,v.Local.sOrigSfx,v.Local.sPart,v.Local.sOrigSeq,v.Local.ssql)
+					f.ODBC.Connection!con.executeandreturn(v.Local.ssql,v.Local.dDueDate)
+					F.Intrinsic.String.Format(V.Local.dDueDate,"MMDDYY",v.Local.sDueD)
+					
+					'Get the Purchase Qty & cost, UM, PL, GL Account, and Due Date
+					
+					f.Intrinsic.Control.CallSub(getVendorSetHeader,"Vend",v.Local.sIntraVend,"PONum",V.DataTable.dtIntra(V.Local.I).INTRA_PO_HEAD!Fieldvaltrim)
+					F.Data.DataTable.AddRow("UPLPURORL","PONum",V.DataTable.dtIntra(V.Local.I).INTRA_PO_HEAD!Fieldvaltrim,"RecType",V.Local.sSOL3,"WONum",v.Local.sOrigJob,"WOSeq",v.Local.sOrigSeq,"WOSuffix",v.Local.sOrigSfx,"PartNum",v.Local.sPart,"PartDesc",v.Local.sDesc,"PurchQtyOrdered",v.Local.fPurQ,"PurchCost",v.Local.fPurC,"POUM",v.Local.sPurU,"PL",v.Local.sPL,"GLAcct",v.Local.sGenL,"DueDate",v.Local.sDueD)
+					
+					f.Intrinsic.String.Build("UPDATE GAB_6808_INTRA SET JOB='{0}', SUFFIX='{1}', PO_RM_PART_DDATE='{2}', PO_CREATED='Y' WHERE INTRA_SO_HEAD='{3}' AND INTRA_SO_LINE='{4}'",v.Local.sjob,v.Local.ssfx,V.Local.dDueDate.PervasiveDate,v.DataTable.dtIntra(v.Local.i).INTRA_SO_HEAD!Fieldvaltrim,v.DataTable.dtIntra(v.Local.i).INTRA_SO_LINE!Fieldvaltrim,v.Local.ssql)
+					f.ODBC.Connection!con.execute(v.Local.ssql)
+				f.Intrinsic.Control.EndIf
+			f.Intrinsic.Control.Next(v.Local.i)
+			
+			f.Intrinsic.Control.If(v.Local.sMsg.Trim,<>,"")
+				f.Intrinsic.UI.Msgbox(v.Local.sMsg)
+			f.Intrinsic.Control.Else
+				f.Intrinsic.Control.If(v.DataTable.UPLPURORA.RowCount,=,0)
+					f.Intrinsic.UI.SleepMS(1)
+				f.Intrinsic.Control.Else
+					F.Intrinsic.Control.CallSub(UPLPURORSync)
+					F.Intrinsic.Control.CallSub(6004Sync)
+					F.Intrinsic.UI.Msgbox("Successfully created all intracompany sales orders & purchase orders.")
+				f.Intrinsic.Control.EndIf
+			f.Intrinsic.Control.EndIf
+		f.Intrinsic.Control.EndIf
+	f.Intrinsic.Control.EndIf
+	
+	f.ODBC.Connection!con.Close
+	f.Intrinsic.Control.End
+	
+f.Intrinsic.Control.Catch
+	F.Intrinsic.UI.Msgbox(V.Ambient.ErrorDescription)
+	F.ODBC.Connection!CON.Close
+	F.Intrinsic.Control.End
+f.Intrinsic.Control.EndTry
+Program.Sub.Main.End
+
+Program.Sub.getVendorSetHeader.Start
+f.Intrinsic.Control.Try
+	v.Local.ssql.Declare
+	v.Local.sret.Declare
+	v.Local.svend.Declare
+	v.Local.iPONum.Declare
+	v.Local.sVend.Set(v.Args.Vend)
+	v.Local.iPONum.Set(v.Args.PONum)
+	
+	v.Local.sVendName.Declare
+	v.Local.sVendAddr1.Declare
+	v.Local.sVendAddr2.Declare
+	v.Local.sVendAddr3.Declare
+	v.Local.sVendAddr4.Declare
+	v.Local.sVendAddr5.Declare
+	v.Local.sVendCity.Declare
+	v.Local.sVendState.Declare
+	v.Local.sVendZip.Declare
+	v.Local.sVendCountry.Declare
+	v.Local.sVendCounty.Declare
+	v.Local.sVendAttn.Declare
+	v.Local.sIntlFlag.Declare
+	v.Local.sShipVendName.Declare
+	v.Local.sShipVendAddr1.Declare
+	v.Local.sShipVendAddr2.Declare
+	v.Local.sShipVendAddr3.Declare
+	v.Local.sShipVendAddr4.Declare
+	v.Local.sShipVendAddr5.Declare
+	v.Local.sShipVendCity.Declare
+	v.Local.sShipVendState.Declare
+	v.Local.sShipVendZip.Declare
+	v.Local.sShipVendCountry.Declare
+	v.Local.sShipVendCounty.Declare 
+	v.Local.sShipVendAttn.Declare
+	v.Local.sShipIntlFlag.Declare
+	v.Local.sFOB.Declare
+	v.Local.sTrms.Declare
+	v.Local.sBuyC.Declare
+	v.Local.sEmail.Declare
+
+	f.Intrinsic.String.Build("SELECT NAME_VENDOR, ADDRESS1, ADDRESS2, ADDRESS3, ADDRESS4, ADDRESS5, CITY, STATE, CODE_ZIP, COUNTRY, COUNTY, ATTENTION, BUYER, INTL_ADRS FROM V_VENDOR_MASTER3 WHERE VENDOR='{0}'",v.Local.sVend.Trim,v.Local.sSQL)
+	f.ODBC.Connection!con.ExecuteAndReturn(v.Local.sSQL,v.Local.sRet)
+	f.Intrinsic.String.Split(v.Local.sRet,"*!*",v.Local.sRet)
+	v.Local.sVendName.Set(v.Local.sRet(0))
+	v.Local.sVendAddr1.Set(v.Local.sRet(1))
+	v.Local.sVendAddr2.Set(v.Local.sRet(2))
+	v.Local.sVendAddr3.Set(v.Local.sRet(3))
+	v.Local.sVendAddr4.Set(v.Local.sRet(4))
+	v.Local.sVendAddr5.Set(v.Local.sRet(5))
+	v.Local.sVendCity.Set(v.Local.sRet(6))
+	v.Local.sVendState.Set(v.Local.sRet(7))
+	v.Local.sVendZip.Set(v.Local.sRet(8))
+	v.Local.sVendCountry.Set(v.Local.sRet(9))
+	v.Local.sVendCounty.Set(v.Local.sRet(10))
+	v.Local.sVendAttn.Set(v.Local.sRet(11))
+	v.Local.sBuyC.Set(v.Local.sRet(12))
+	v.Local.sIntlFlag.Set(v.Local.sRet(13))
+	
+	f.ODBC.Connection!con.ExecuteAndReturn("SELECT NAME_VENDOR, ADDRESS1, ADDRESS2, ADDRESS3, ADDRESS4, ADDRESS5, CITY, STATE, CODE_ZIP, COUNTRY, COUNTY, ATTENTION, INTL_ADRS FROM V_VENDOR_MASTER3 WHERE RESV='1'",v.Local.sRet)
+	f.Intrinsic.String.Split(v.Local.sRet,"*!*",v.Local.sRet)
+	v.Local.sShipVendName.Set(v.Local.sRet(0))
+	v.Local.sShipVendAddr1.Set(v.Local.sRet(1))
+	v.Local.sShipVendAddr2.Set(v.Local.sRet(2))
+	v.Local.sShipVendAddr3.Set(v.Local.sRet(3))
+	v.Local.sShipVendAddr4.Set(v.Local.sRet(4))
+	v.Local.sShipVendAddr5.Set(v.Local.sRet(5))
+	v.Local.sShipVendCity.Set(v.Local.sRet(6))
+	v.Local.sShipVendState.Set(v.Local.sRet(7))
+	v.Local.sShipVendZip.Set(v.Local.sRet(8))
+	v.Local.sShipVendCountry.Set(v.Local.sRet(9))
+	v.Local.sShipVendCounty.Set(v.Local.sRet(10))
+	v.Local.sShipVendAttn.Set(v.Local.sRet(11))
+	v.Local.sShipIntlFlag.Set(v.Local.sRet(12))
+	
+	f.Intrinsic.String.Build("SELECT payment_terms, code_fob FROM V_VENDOR_PAY_TO WHERE VENDOR='{0}'",v.Local.sVend.Trim,v.Local.sSQL)
+	f.ODBC.Connection!con.ExecuteAndReturn(v.Local.sSQL,v.Local.sRet)
+	f.Intrinsic.String.Split(v.Local.sRet,"*!*",v.Local.sRet)
+	v.Local.sTrms.Set(v.Local.sRet(0))
+	v.Local.sFOB.Set(v.Local.sRet(1))
+	
+	F.Intrinsic.String.Build("SELECT EMAIL FROM V_VENDOR_ADDL WHERE VENDOR='{0}'",v.Local.svend.Trim,v.Local.ssql)
+	f.ODBC.Connection!con.ExecuteAndReturn(v.Local.ssql,v.Local.sEmail)
+	
+	f.Intrinsic.String.Build("select TERMS_MESSAGE from V_AP_TERMS WHERE TERMS_CODE='{0}'",V.Local.sTrms,V.Local.sSQL)
+	F.ODBC.Connection!CON.ExecuteAndReturn(v.Local.sSql,v.Local.sTrms)
+	
+
+	F.Data.DataTable.AddRow("UPLPURORA","PONum",v.Local.iPONum,"OrderTaxCode","T","VendNum",v.Local.sVend,"Terms",v.Local.sTrms,"BuyerCode",v.LOCAL.sBuyC,"FOBInfo",v.Local.sFOB)
+	f.Data.DataTable.AddRow("UPLPURORBC","PONum",v.Local.iPONum,"RecType","B","VendName",v.Local.sVendName,"VendAddr1",v.Local.sVendAddr1,"VendAddr2",v.Local.sVendAddr2,"VendAddr3",v.Local.sVendAddr3,"VendAddr4",v.Local.sVendAddr4,"VendAddr5",v.Local.sVendAddr5,"VendCity",v.Local.sVendCity,"VendState",v.Local.sVendState,"VendZip",v.Local.sVendZip,"VendCountry",v.Local.sVendCountry,"VendAttn",v.Local.sVendAttn,"IntlFlag",v.Local.sIntlFlag,"ContactEmail",v.Local.sEmail)
+	F.Data.DataTable.AddRow("UPLPURORBC","PONum",v.Local.iPONum,"RecType","C","VendName",v.Local.sShipVendName,"VendAddr1",v.Local.sShipVendAddr1,"VendAddr2",v.Local.sShipVendAddr2,"VendAddr3",v.Local.sShipVendAddr3,"VendAddr4",v.Local.sShipVendAddr4,"VendAddr5",v.Local.sShipVendAddr5,"VendCity",v.Local.sShipVendCity,"VendState",v.Local.sShipVendState,"VendZip",v.Local.sShipVendZip,"VendCountry",v.Local.sShipVendCountry,"VendAttn",v.Local.sShipVendAttn,"IntlFlag",v.Local.sShipIntlFlag,"ContactEmail",v.Local.sEmail)
+	
+f.Intrinsic.Control.Catch
+	f.Intrinsic.UI.Msgbox(v.Ambient.ErrorDescription)
+	f.ODBC.Connection!con.Close
+	f.Intrinsic.Control.End
+f.Intrinsic.Control.EndTry
+
+Program.Sub.getVendorSetHeader.End
