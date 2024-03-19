@@ -1,0 +1,97 @@
+Program.Sub.ScreenSU.Start
+Gui.frmDefault..Create(DashForm)
+Gui.frmDefault..Caption("Intracompany Dashboard")
+Gui.frmDefault..Size(15360,10800)
+Gui.frmDefault..MinX(0)
+Gui.frmDefault..MinY(0)
+Gui.frmDefault..Position(0,0)
+Gui.frmDefault..AlwaysOnTop(False)
+Gui.frmDefault..FontName("Tahoma")
+Gui.frmDefault..FontSize(8.25)
+Gui.frmDefault..ControlBox(True)
+Gui.frmDefault..MaxButton(True)
+Gui.frmDefault..MinButton(True)
+Gui.frmDefault..MousePointer(0)
+Gui.frmDefault..Moveable(True)
+Gui.frmDefault..Sizeable(True)
+Gui.frmDefault..ShowInTaskBar(True)
+Gui.frmDefault..TitleBar(True)
+Gui.frmDefault..Event(UnLoad,frmDefault_UnLoad)
+Gui.frmDefault.gsgcIntra.Create(GsGridControl)
+Gui.frmDefault.gsgcIntra.Enabled(True)
+Gui.frmDefault.gsgcIntra.Visible(True)
+Gui.frmDefault.gsgcIntra.Zorder(0)
+Gui.frmDefault.gsgcIntra.Size(15330,9375)
+Gui.frmDefault.gsgcIntra.Position(0,0)
+Gui.frmDefault.gsgcIntra.Dock(5)
+gui.frmDefault.gsgcIntra.Event(RowCellClick,GsGC_RowCellClick_Universal)
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+V.Global.bLoadData.Declare
+V.Global.sGridViews.Declare
+v.Global.iVendRow.Declare
+v.Global.bResched.Declare
+v.global.sBuildData.Declare
+Program.External.Include.Library("Gridview_UniversalFunctions.lib")
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+f.Intrinsic.Control.Try
+	V.Global.sGridViews.Set("frmDefault*!*gsgcIntra*!*gvIntra")
+	
+	'Open DB Connection
+	F.ODBC.Connection!con.OpenCompanyConnection(500)
+	
+	'Load Tab 0 > Open Material Requirements
+	F.Intrinsic.Control.CallSub(DataLoader,"sKey","gsgcIntra")
+	
+	gui.frmDefault..Show
+	
+f.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(Catching,"Sub",V.Ambient.CurrentSubroutine,"ErrorNo",V.Ambient.ErrorNumber,"ErrorDesc",V.Ambient.ErrorDescription) 
+f.Intrinsic.Control.EndTry
+Program.Sub.Main.End
+
+Program.Sub.DataLoader.Start
+F.Intrinsic.Control.Try
+	V.Local.sError.Declare
+	v.Local.sCaption.Declare
+	
+	F.Intrinsic.Control.SelectCase(V.Args.sKey)
+		F.Intrinsic.Control.Case("gsgcIntra")
+			F.Intrinsic.Control.CallSub(LoadData, "sDataTableName","dtIntra","sFormName","frmDefault","sGridControlName","gsgcIntra","sGridViewName","gvIntra","sSQL","SELECT SO_HEAD, SO_LINE, CUSTOMER_NAME, INTRA_SO_HEAD AS 'SO', INTRA_SO_LINE, INTRA_PO_HEAD AS 'PO', INTRA_PO_LINE, JOB, SUFFIX, PO_RM_PART, PO_RM_PART_DESC, PO_RM_PART_QTY, PO_RM_PART_COST, PO_RM_PART_UM, PO_RM_PART_GL, PO_RM_PART_DDATE, PO_RM_PART_PL, PO_CREATED FROM GAB_6808_INTRA")
+		
+	F.Intrinsic.Control.EndSelect
+	
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(Catching,"Sub",V.Ambient.CurrentSubroutine,"ErrorNo",V.Ambient.ErrorNumber,"ErrorDesc",V.Ambient.ErrorDescription) 
+F.Intrinsic.Control.EndTry
+Program.Sub.DataLoader.End
+
+Program.Sub.frmDefault_UnLoad.Start
+f.ODBC.Connection!con.Close
+f.Intrinsic.Control.End
+Program.Sub.frmDefault_UnLoad.End
+
+Program.Sub.GsGC_RowCellClick_Universal.Start
+	V.Local.iBID.Declare
+	V.Local.sBIReport.Declare
+	v.Local.sParam.Declare
+	v.Local.sValue.Declare
+	v.Local.sRFQ.Declare
+	v.Local.sRFQLine.Declare
+	v.Local.sSql.Declare
+	v.Local.sRet.Declare
+	v.Local.sCol.Declare
+	v.Local.sColW.Declare
+	
+	'This sub call will handle all of the basic built in core data entity stuff...
+	'linking to S&D, PO View, SO View, WO View, and DCS Linking
+	'@Part, @SO, @PO, @WO, PART, SO, PO, WO columns all handled in the basic sense.
+	F.Intrinsic.Control.CallSub(GetActiveGridView,"ControlName",V.Args.ControlName)
+	F.Intrinsic.Control.CallSub(RowCellClick_HandleCoreEntity, "Screen", V.Args.Screen, "ControlName", V.Args.ControlName, "EventType", V.Args.EventType, "Column", V.Args.Column, "RowIndex", V.Args.RowIndex, "GridView", V.Args.GridView)
+	
+	
+Program.Sub.GsGC_RowCellClick_Universal.End
+
